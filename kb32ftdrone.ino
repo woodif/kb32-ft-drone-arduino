@@ -85,6 +85,7 @@ const int vbatt_pin = 39;
 
 VL53L0X sensor;
 float high;
+uint16_t battery_level;
 
 Madgwick filter;
 
@@ -224,40 +225,7 @@ void loop()
 {
   RemoteXY_Handler();
 
-  // digitalWrite(G_led, HIGH);   // turn the LED on (HIGH is the voltage level)
-  // delay(100);  // one tick delay (15ms) in between reads for stability
-  // digitalWrite(G_led, LOW);    // turn the LED off by making the voltage LOW
-
-  // Serial.print(RemoteXY.joystick_1_x);Serial.print(",");
-  // Serial.print(RemoteXY.joystick_1_y);Serial.print(",");
-  // Serial.print(RemoteXY.joystick_2_x);Serial.print(",");
-  // Serial.print(RemoteXY.joystick_2_y);Serial.print(",");
-  // Serial.print("\n");
-
-  //  tft.setTextColor(TFT_BLACK);
-  //  tft.setCursor(10, 10);
-  sprintf(print_buf, ".%2.2f", Kd_T);
-  //  tft.println(print_buf);
-  //  tft.setCursor(10, 25);
-  sprintf(print_buf, ".%4.0f", Sum_Error_T);
-  //  tft.println(print_buf);
-
-  if (digitalRead(S1_pin) == 0) {
-    Kd_T -= 0.05;
-
-  }
-  if (digitalRead(S2_pin) == 0) {
-    Kd_T += 0.05;
-  }
-
-  Ref_altitude_S = Ref_altitude;
-  //  tft.setTextColor(TFT_WHITE);
-  //  tft.setCursor(10, 10);
-  sprintf(print_buf, ".%2.2f", Kd_T);
-  //  tft.println(print_buf);
-  //  tft.setCursor(10, 25);
-  sprintf(print_buf, ".%4.0f", Ref_altitude_S);
-  //  tft.println(print_buf);
+  //Ref_altitude_S = Ref_altitude;
 
   delay(30);
   RemoteXY_Handler();
@@ -320,12 +288,12 @@ void angle_controller(void* pvParameters)  // This is a task.
   Serial.println("Updating internal sensor offsets...");
 
 
-  //  accelgyro.setXAccelOffset(1624);
-  //  accelgyro.setYAccelOffset(-589);
-  //  accelgyro.setZAccelOffset(1272);
-  //  accelgyro.setXGyroOffset(64);
-  //  accelgyro.setYGyroOffset(57);
-  //  accelgyro.setZGyroOffset(85);
+  //  accelgyro.setXAccelOffset(1498);
+  //  accelgyro.setYAccelOffset(67);
+  //  accelgyro.setZAccelOffset(528);
+  //  accelgyro.setXGyroOffset(-85);
+  //  accelgyro.setYGyroOffset(4);
+  //  accelgyro.setZGyroOffset(-12);
 
   accelgyro.CalibrateAccel(20);
   accelgyro.CalibrateGyro(20);
@@ -381,28 +349,6 @@ void angle_controller(void* pvParameters)  // This is a task.
     _pitch = filter.getPitch();
     _heading = filter.getYaw();
     _heading_speed = gzf;
-
-    // Serial.print(_roll); Serial.print("\t");
-    // Serial.print(_pitch); Serial.print("\t");
-    // Serial.print(_heading_speed);Serial.print("\t");
-    // Serial.print(RemoteXY.joystick_1_x);Serial.print(",");
-    // Serial.print(RemoteXY.joystick_1_y);Serial.print(",");
-    // Serial.print(RemoteXY.joystick_2_x);Serial.print(",");
-    // Serial.print(RemoteXY.joystick_2_y);Serial.print(",");
-    // Serial.print("\n");
-
-    // Serial.print("a/g:\t");
-    // Serial.print(ax); Serial.print("\t");
-    // Serial.print(ay); Serial.print("\t");
-    // Serial.print(az); Serial.print("\t");
-    // Serial.print(gx); Serial.print("\t");
-    // Serial.print(gy); Serial.print("\t");
-    // Serial.print(gz); Serial.print("\t");
-
-
-    // Buf_D_Error_yaw = Error_yaw;
-    // Buf_D_Errer_pitch = Errer_pitch;
-    // Buf_D_Error_roll = Error_roll;
 
     x1 = (float)RemoteXY.joystick_1_x / 100.0f;
     // x2 = (float)RemoteXY.joystick_1_y / 100.0f;
@@ -505,11 +451,12 @@ void attitude_controller(void* pvParameters)  // This is a task.
     if (RemoteXY.switch_1 == 0) {
       Ref_altitude = 0;
     }
-    else {
+        else {
 
       Ref_altitude = constrain(Ref_altitude + x2 * 5, 0, 1000);
-      if (RemoteXY.joystick_1_y <= -100)
-        Ref_altitude = 0;
+      if (RemoteXY.joystick_1_y <= -100) Ref_altitude = 0;
+      if (RemoteXY.connect_flag == 0) Ref_altitude = 0;
+      if (battery_level <= 3300) Ref_altitude = 0;
 
 
       high = constrain(high * cosf(filter.getRollRadians()) * cosf(filter.getPitchRadians()), 0, 1500);
@@ -535,12 +482,9 @@ void attitude_controller(void* pvParameters)  // This is a task.
     }
     // Serial.println(Ref_altitude);
 
-    uint16_t battery_level = analogRead(vbatt_pin) * 2 * 3600 / 4095;
-    vv_batt = lpf(constrain(batt.level(battery_level), 0, 100), vv_batt);
+    battery_level = lpf(analogRead(vbatt_pin) * 2 * 3600 / 4095,battery_level);
+    vv_batt = constrain(batt.level(battery_level), 0, 100);
     RemoteXY.level_1 = vv_batt;
-    Serial.print (analogRead(vbatt_pin));
-    Serial.print ("\t");
-    Serial.println(battery_level);
     digitalWrite(R_led, LOW);
     vTaskDelayUntil(&start_time, 20);
   }
